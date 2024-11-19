@@ -1,48 +1,25 @@
 steps:
-#- name: "gcr.io/cloud-builders/kubectl"
-#  args: ['get', 'nodes']
-#  env:
-#  - 'CLOUDSDK_COMPUTE_REGION=us-west1-b'
-#  - 'CLOUDSDK_CONTAINER_CLUSTER=cluster-1'
+  # Docker Build
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 
+           'us-east1-docker.pkg.dev/${PROJECT_ID}/cicdtest/quickstart-image:latest .', 
 
-- name: "gcr.io/cloud-builders/docker"
-  args: ['build', '-t', 'shashank3656/build:$BUILD_ID', '.']
-  
-- name: "gcr.io/cloud-builders/docker"
-  entrypoint: 'bash'
-  args:
-  - '-c'
-  - >
-    docker login --username shashank3656 --password gowthamn1
-  
-- name: "gcr.io/cloud-builders/docker"
-  args: ['push', 'shashank3656/build:$BUILD_ID']
- 
-- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-  entrypoint: 'bash'
-  args:
-  - '-c'
-  - > 
-    gcloud deploy releases create release-$BUILD_ID
-    --delivery-pipeline=node-app1
-    --region=us-west1
-    --from-k8s-manifest=k8s/*.yaml 
-    --images=shashank3656/build:$BUILD_ID
+           '.']
 
-#- name: gcr.io/google.com/cloudsdktool/cloud-sdk
-#  entrypoint: gcloud
-#  args:
-#    [
-#      "deploy", "releases", "create", "release-$BUILD_ID",
-#      "--delivery-pipeline", "node-app",
-#      "--region", "us-west1",
-#      "--annotations", "commitId=${REVISION_ID}",
-#      "--images", "shashank3656-clouddeploy-image=shashank3656/build:$BUILD_ID",
-#      "--to-target", "staging"
-#    ]
+  # Docker Push
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 
+           'us-east1-docker.pkg.dev/${PROJECT_ID}/cicdtest/quickstart-image:latest']
 
-options:
-  logging: CLOUD_LOGGING_ONLY
-  workerPool:
-    'projects/clgcporg2-073/locations/us-west1/workerPools/cicd-worker-pool'
-
+  # Entrypoint, timeout and environment variables
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    timeout: 240s
+    args: ['compute', 'instances', 
+           'create-with-container', 'my-vm-name',
+           '--container-image', 
+           'us-east1-docker.pkg.dev/${PROJECT_ID}/cicdtest/quickstart-image:latest']
+    env:
+      - 'CLOUDSDK_COMPUTE_REGION=us-east1'
+      - 'CLOUDSDK_COMPUTE_ZONE=us-east1-a'
+      - 'PROJECT_ID = fine-climber-412705'
